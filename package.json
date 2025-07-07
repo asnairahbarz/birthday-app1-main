@@ -1,5 +1,5 @@
 {
-  "name": "birthday-app",
+  "name": "birthday-app1-main",
   "version": "1.0.0",
   "description": "A Node.js app for submitting and displaying birthday messages",
   "main": "server.js",
