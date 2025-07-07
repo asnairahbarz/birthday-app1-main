@@ -1,52 +1,35 @@
 const express = require('express');
-const cors = require('cors');
-const sqlite3 = require('sqlite3').verbose();
+const fs = require('fs');
 const path = require('path');
-
 const app = express();
-const port = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+const messagesFile = path.join(__dirname, 'messages.json');
+
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public'));
 
-const db = new sqlite3.Database('./messages.db', (err) => {
-  if (err) {
-    console.error('Could not connect to database', err);
-  } else {
-    console.log('Connected to SQLite database');
-  }
+app.get('/', (req, res) => res.redirect('/greet.html'));
+app.get('/greet.html', (req, res) => res.sendFile(path.join(__dirname, 'greet.html')));
+app.get('/celebrant.html', (req, res) => res.sendFile(path.join(__dirname, 'celebrant.html')));
+
+// API to get and post messages
+app.get('/messages', (req, res) => {
+  fs.readFile(messagesFile, 'utf-8', (err, data) => {
+    res.json(err ? [] : JSON.parse(data || '[]'));
+  });
 });
-
-db.run(\`
-  CREATE TABLE IF NOT EXISTS messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    content TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-\`);
 
 app.post('/messages', (req, res) => {
-  const content = req.body.content;
-  if (!content) return res.status(400).json({ error: 'Message content is required.' });
-
-  db.run(\`INSERT INTO messages (content) VALUES (?)\`, [content], function (err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ id: this.lastID, message: 'Message saved successfully.' });
+  const newMessage = req.body.message;
+  fs.readFile(messagesFile, 'utf-8', (err, data) => {
+    const messages = !err && data ? JSON.parse(data) : [];
+    messages.push(newMessage);
+    fs.writeFile(messagesFile, JSON.stringify(messages, null, 2), err => {
+      if (err) return res.status(500).send("Error saving");
+      res.json({ message: newMessage });
+    });
   });
 });
 
-app.get('/messages', (req, res) => {
-  db.all(\`SELECT content FROM messages ORDER BY created_at ASC\`, [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(rows.map(r => r.content));
-  });
-});
-
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'greet.html'));
-});
-
-app.listen(port, () => {
-  console.log(\`🎉 Server running at http://localhost:\${port}\`);
-});
+app.listen(PORT, () => console.log(`?? Birthday App running at http://localhost:${PORT}`));
